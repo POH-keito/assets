@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# post-merge hook (ii:setup が配る baseline)
+#
+# 有効化: dotfiles-hooks install   (core.hooksPath をこのディレクトリに向ける)
+#
+# Job: merge 後に vexp index を復旧させる。
+#
+# vexp が生成する同名 hook は .git/hooks/ に置かれるが、core.hooksPath=hooks に
+# 切り替えると git はそちらを読まない (repo-baseline.md 落とし穴 5)。だから hooks/ 側に置く。
+# jj 経路では発火しない (落とし穴 2)。
+
+set -eu
+
+command -v vexp > /dev/null 2>&1 || exit 0
+
+# index が古いことで merge を失敗扱いにしない。`|| true` を外さないこと。
+vexp index --merge-recover > /dev/null || true
+
+exit 0

@@ -1,0 +1,3 @@
+[tools]
+# hk (jdx/hk): jj-push の pre-push checker runner。built-in pklr evaluator を持つため pkl CLI は不要。
+hk = "latest"

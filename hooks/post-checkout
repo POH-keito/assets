@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# post-checkout hook (ii:setup が配る baseline)
+#
+# 有効化: dotfiles-hooks install   (core.hooksPath をこのディレクトリに向ける)
+#
+# Job: branch 切り替え後に vexp index を追従させる。
+#
+# vexp が生成する同名 hook は .git/hooks/ に置かれるが、core.hooksPath=hooks に
+# 切り替えると git はそちらを読まない (repo-baseline.md 落とし穴 5)。だから hooks/ 側に置く。
+# jj commit / jj new 経路では発火しない (jj は git hooks を実行しない — 落とし穴 2)。
+
+set -eu
+
+# $3 = 1 なら branch checkout、0 ならファイル単位 checkout。後者では index は動かない。
+[ "${3:-1}" != "0" ] || exit 0
+
+command -v vexp > /dev/null 2>&1 || exit 0
+
+# index が古いことで checkout を失敗扱いにしない。`|| true` を外さないこと。
+vexp index --checkout-sync > /dev/null || true
+
+exit 0

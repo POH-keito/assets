@@ -1,0 +1,10 @@
+# colocate 時の CRLF 混入を止める。個別指定より前に置く (属性は後勝ち)
+* text=auto eol=lf
+
+# 画像は binary。eol 変換の対象にしない (text=auto の誤判定を防ぐ)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary

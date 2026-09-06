@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# pre-commit hook (ii:setup が配る baseline)
+#
+# 有効化: dotfiles-hooks install   (core.hooksPath をこのディレクトリに向ける)
+#
+# Jobs:
+#   1. gitleaks / secretlint (dotfiles-hooks check --staged)
+#   2. 5MB 超のファイル混入をブロック
+#   3. SQLite DB の commit をブロック
+#   4. vexp index の finalize (index を commit に追従。失敗しても commit は止めない)
+#
+# jj commit ではこの hook は走らない (jj は git hooks を実行しない)。
+# jj 経路の gate は hk.pkl の pre-push (mise run hooks-jj-push) が担う。
+
+set -e
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# ----------------------------------------------------------------
+# 1. secret 検出 (gitleaks + secretlint)
+# ----------------------------------------------------------------
+dotfiles-hooks check --staged
+
+# ----------------------------------------------------------------
+# 2/3. size / db guard (Work-Docs .githooks/pre-commit から移植)
+#
+# --diff-filter=ACM: 新規(A)・コピー(C)・変更(M) を対象にする。
+# A のみだと「既存ファイルへの追記で肥大する」パターンを検知できない。
+# ----------------------------------------------------------------
+SIZE_LIMIT=$((5 * 1024 * 1024))
+git diff --cached --name-only --diff-filter=ACM -z | while IFS= read -r -d '' f; do
+  [ -f "$f" ] || continue
+  size=$(wc -c < "$f")
+  if [ "$size" -gt "$SIZE_LIMIT" ]; then
+    echo "❌ 5MB 超のファイル: $f ($((size / 1048576))MB)。Drive に置いて参照リンクにする" >&2
+    exit 1
+  fi
+  case "$f" in
+    *.db|*.sqlite|*.sqlite3)
+      echo "❌ SQLite DB は commit 禁止: $f (gitignore に追加する)" >&2
+      exit 1 ;;
+  esac
+done || exit 1
+
+# ----------------------------------------------------------------
+# 4. vexp index の finalize
+#
+# core.hooksPath=hooks に切り替えると .git/hooks/ の vexp 生成 hook は二度と
+# 実行されない。git は hook を 1 箇所からしか読まないため (repo-baseline.md 落とし穴 5)。
+# vexp 側の job もこちらに置く。
+#
+# index が古いことで commit を止めない。`|| true` を外さないこと。
+# stdout だけ捨てる (stderr を消すと原因が見えなくなる)。
+# .vexp/ は gitignore 済みなので manifest の auto-stage はしない。
+# ----------------------------------------------------------------
+if command -v vexp > /dev/null 2>&1; then
+  vexp index --finalize > /dev/null || true
+fi
+
+exit 0

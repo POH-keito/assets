@@ -1,0 +1,2 @@
+# vexp context engine (personal mode = ローカル専用。共有設定を置かないので丸ごと除外)
+.vexp/

@@ -1,0 +1,41 @@
+// hk (jdx/hk) 設定。jj commit 運用の push gate だけを宣言する。
+//
+// jj は git の hook を実行しない (公式 docs/git-compatibility.md が明記)。
+// git commit 経路は hooks/pre-commit が、jj commit 経路はこの push gate が secret を止める。
+//
+// 呼び出しは `mise run jj-push` (= jj-core push) からのみ。
+// `hk install` は実行しない — hooks/pre-commit を配る core.hooksPath の配線と競合する。
+//
+// ai-dotfiles/hk.pkl から gitleaks / secretlint の 2 step だけ移植した。
+// verify (生成物 drift) と style-core-test は ai-dotfiles 固有なので持ち込まない。
+amends "package://github.com/jdx/hk/releases/download/v1.53.0/hk@1.53.0#/Config.pkl"
+
+// 変数名を `steps` にすると `steps = steps` が自己参照的に解決され、
+// pkl がエラーを出さず空の Mapping を束ねる (ai-dotfiles で 2026-07-27 に実測)。
+local push_steps = new Mapping<String, Step> {
+  // secret 検出。push 対象 revision は dotfiles-hooks jj-push が
+  // DOTFILES_HOOKS_FROM_REF / DOTFILES_HOOKS_TO_REF env var で渡し、Rust 側が読む。
+  // glob は「push 範囲に何か変更があれば必ず発火させる」ためのトリガー条件。
+  ["gitleaks"] {
+    glob = List("**/*")
+    check = "dotfiles-hooks check-secrets"
+  }
+
+  // Markdown 等へのうっかり貼り付け対策。
+  // {{files}} は hk が glob と変更ファイルの交差から算出する (公式パターン)。
+  // secretlint の `--secretlintrc=` 指定は config 自身を走査対象から自動除外する。
+  // batch = true だと 1 ファイルずつ分割され `.secretlintrc.json` 単独で落ちるため
+  // 使わない (Mercurio #3023)。dotfiles-hooks 側が自前で除外する。
+  ["secretlint"] {
+    glob = List(
+      "*.md", "*.json", "*.yml", "*.yaml", "*.toml", "*.sh", "*.ts", "*.js", "*.env"
+    )
+    check = "dotfiles-hooks check-secretlint {{files}}"
+  }
+}
+
+hooks {
+  ["pre-push"] {
+    steps = push_steps
+  }
+}
