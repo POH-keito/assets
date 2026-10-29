@@ -16,6 +16,14 @@ set -eu
 
 command -v vexp > /dev/null 2>&1 || exit 0
 
+# linked worktree の同期索引は既定で作らない。必要な場合だけ明示的に opt-in する。
+if [ "${VEXP_WORKTREE_INDEX:-0}" != "1" ]; then
+    _top="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+    if [ -n "$_top" ] && [ -f "$_top/.git" ] && grep -q "\.git/worktrees/" "$_top/.git" 2>/dev/null; then
+        exit 0
+    fi
+fi
+
 # index が古いことで checkout を失敗扱いにしない。`|| true` を外さないこと。
 vexp index --checkout-sync > /dev/null || true
 
