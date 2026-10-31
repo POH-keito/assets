@@ -55,7 +55,16 @@ done || exit 1
 # .vexp/ は gitignore 済みなので manifest の auto-stage はしない。
 # ----------------------------------------------------------------
 if command -v vexp > /dev/null 2>&1; then
-  vexp index --finalize > /dev/null || true
+  _skip_index=0
+  if [ "${VEXP_WORKTREE_INDEX:-0}" != "1" ]; then
+    _top="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+    if [ -n "$_top" ] && [ -f "$_top/.git" ] && grep -q "\.git/worktrees/" "$_top/.git" 2>/dev/null; then
+      _skip_index=1
+    fi
+  fi
+  if [ "$_skip_index" = "0" ]; then
+    vexp index --finalize > /dev/null || true
+  fi
 fi
 
 exit 0

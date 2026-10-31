@@ -13,6 +13,14 @@ set -eu
 
 command -v vexp > /dev/null 2>&1 || exit 0
 
+# linked worktree では走らせない。判定と opt-in は post-checkout と同じ。
+if [ "${VEXP_WORKTREE_INDEX:-0}" != "1" ]; then
+  _top="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  if [ -n "$_top" ] && [ -f "$_top/.git" ] && grep -q "\.git/worktrees/" "$_top/.git" 2>/dev/null; then
+    exit 0
+  fi
+fi
+
 # index が古いことで merge を失敗扱いにしない。`|| true` を外さないこと。
 vexp index --merge-recover > /dev/null || true
 
